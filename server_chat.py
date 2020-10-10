@@ -1,4 +1,4 @@
-# chat_server.py
+# server_chat.py
 
 import sys
 import socket
