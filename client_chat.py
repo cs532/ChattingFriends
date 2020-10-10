@@ -1,4 +1,5 @@
-# socket_echo_client.py
+# client_chat.py
+
 import sys
 import socket
 import threading
