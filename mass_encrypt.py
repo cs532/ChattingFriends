@@ -1,7 +1,7 @@
 import numpy as np
-import re
 
-val_num_char = 129
+# global
+val_num_char = 127
 
 
 def format_text(tex):
@@ -101,7 +101,7 @@ def back_to_str(num_pairs):
     return coded_msg
     
 
-def mass_encrypt(text,secret):
+def mass_encrypt(text, secret):
     pa = format_then_pair(text)
     ciph = [[3,5],[2,7]]
     hillm = np.asarray(ciph)
@@ -112,7 +112,7 @@ def mass_encrypt(text,secret):
 
 def mass_decrypt(text, secret):
     paired = format_then_pair(text)
-    ciph = [[71, 23],[35, 12]]
+    ciph = [[93, 115], [46,  58]]
     inv_hillm = np.asarray(ciph)
     result = code_alg_hill(inv_hillm, np.array(paired).T, len(paired))
     coded_st = back_to_str(result)
@@ -121,6 +121,9 @@ def mass_decrypt(text, secret):
 
 
 if __name__ == "__main__":
+
+    #basically a test script
+
     print("")
     print("Message:")
     # s is the plain text string you want to encrypt 
