@@ -19,12 +19,14 @@ def establish_secret(friend_pub_key,private_key):
 #must be less than 2**32 due to the use of np.rand()
 prime = 2**31 - 1
 
+
 #create_polynomial returns the value of a polynomial given an x and the randomly generated coefficients
 def create_polynomial(x, coefficients):
     fx = 0
     for i in range(len(coefficients)):
         fx += x**i * int(coefficients[i])
     return fx % prime
+
 
 #generate_shard returns an array of shards to be distributed to the users
 def generate_shard(numCreators, numToOpen, key):
@@ -37,6 +39,7 @@ def generate_shard(numCreators, numToOpen, key):
         shards.append([x+1, create_polynomial(x+1, c)])
     return shards
 
+
 #compile_shards takes in an array of shards then returns the resulting key
 def compile_shards(shards):
     x = np.array([])
@@ -47,15 +50,16 @@ def compile_shards(shards):
     poly = lagrange(x, y)
     return np.polynomial.polynomial.Polynomial(poly).coef[-1] % prime
 
-#test driver code below \/ \/ \/
 
-numCreators = input("please enter the number of people: ")
-numToOpen = input("please enter the number of people needed to open the key: ")
-key = input("please enter the key: less than 2147483647: ")
-numpeople = input("please enter the number of people attempting to generate the key: ")
-shards = generate_shard(numCreators, numToOpen, key)
-print("the generated shards are: ")
-del shards[int(numpeople):int(numCreators)]
-print(shards)
-print("the key gotten using the shards is: ")
-print(compile_shards(shards))
+if __name__ == "__main__":
+    #test driver code below \/ \/ \/
+    numCreators = input("please enter the number of people: ")
+    numToOpen = input("please enter the number of people needed to open the key: ")
+    key = input("please enter the key: less than 2147483647: ")
+    numpeople = input("please enter the number of people attempting to generate the key: ")
+    shards = generate_shard(numCreators, numToOpen, key)
+    print("the generated shards are: ")
+    del shards[int(numpeople):int(numCreators)]
+    print(shards)
+    print("the key gotten using the shards is: ")
+    print(compile_shards(shards))
