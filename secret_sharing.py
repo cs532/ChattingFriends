@@ -24,7 +24,7 @@ prime = 2**31 - 1
 def create_polynomial(x, coefficients):
     fx = 0
     for i in range(len(coefficients)):
-        fx += x**i * int(coefficients[i])
+        fx += x**i * coefficients[i]
     return fx % prime
 
 
@@ -33,7 +33,7 @@ def generate_shard(numCreators, numToOpen, key):
     c = []
     c.append(int(key))
     for x in range(int(numToOpen)-1):
-        c.append(np.random.randint(prime-1))
+        c.append(int(np.random.rand() * prime -1))
     shards = []
     for x in range(int(numCreators)):
         shards.append([x+1, create_polynomial(x+1, c)])
