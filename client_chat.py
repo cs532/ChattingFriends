@@ -51,18 +51,20 @@ def recv_thread(sock1, secret):
     recv_msg = ''
     while recv_msg != '#CLOSE':
         recv_msg = sock1.recv(4096).decode('utf-8')
-        print("message recvd")
+        debug_print("message recvd")
         if len(recv_msg) == 0:
             kill = 1
             sock1.close()
             sys.exit(0)
         debug_print(recv_msg)
         pltxt = dec_recv(recv_msg, secret)
-        print(pltxt)
+
         if pltxt == "#CLOSE":
             kill = 1
             sock1.close()
             sys.exit(0)
+
+        print(pltxt)
 
 
 if __name__ == "__main__":
@@ -88,6 +90,8 @@ if __name__ == "__main__":
             data = input("enter text:\n")
             if kill == 1:
                 sys.exit()
+            if len(data) == 0:
+                data = "#HELP"
 
             debug_print('coding {!r}'.format(data))
             enc_send(data, sock, key)
