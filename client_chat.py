@@ -6,14 +6,13 @@ from secret_sharing import *
 from mass_encrypt import *
 
 # TODO: figure out best way to do IO for recv'd files from the server and storage for keyshards
-# TODO: set a time out timer for ports already being listened on?
 
 # define globals
 key = 0        # shared secret for client/server communication
-debug = 1      # debug mode on if 1, off if 0
+debug = 0      # debug mode on if 1, off if 0
+kill = 0       # global kill var
 
 
-#print if debug mode
 def debug_print(words):
     if debug != 0:
         print(str(words))
@@ -48,12 +47,23 @@ def establish_secret_comm_chain(sock1):
 
 
 def recv_thread(sock1, secret):
+    global kill
     recv_msg = ''
-    while recv_msg != 'close':
+    while recv_msg != '#CLOSE':
         recv_msg = sock1.recv(4096).decode('utf-8')
         debug_print("message recvd")
+        if len(recv_msg) == 0:
+            kill = 1
+            sock1.close()
+            sys.exit(0)
         debug_print(recv_msg)
         pltxt = dec_recv(recv_msg, secret)
+
+        if pltxt == "#CLOSE":
+            kill = 1
+            sock1.close()
+            sys.exit(0)
+
         print(pltxt)
 
 
@@ -71,12 +81,26 @@ if __name__ == "__main__":
         key = establish_secret_comm_chain(sock)
         rec_thread = threading.Thread(target=recv_thread, args=(sock, key))
         rec_thread.start()
+        print("\n Hi! Welcome to our chat service, Chatting Friends! If you need help with commands,\n"
+              + " please type in #HELP for all possible commands. Thank you for being buddies!\n")
+
         data = ' '
 
-        while data != 'close':
+        while True:
             data = input("enter text:\n")
+            if kill == 1:
+                sys.exit()
+            if len(data) == 0:
+                data = "#HELP"
+
             debug_print('coding {!r}'.format(data))
             enc_send(data, sock, key)
+            if data == "#END":
+                while kill != 1:
+                    a = 1
+
+                sys.exit()
+
 
     finally:
         print('closing socket')
