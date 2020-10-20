@@ -45,8 +45,8 @@ def compile_shards(shards):
     x = np.array([])
     y = np.array([])
     for i in range(len(shards)):
-        x = np.append(x, shards[i][0])
-        y = np.append(y, shards[i][1])
+        x = np.append(x, int(shards[i][0]))
+        y = np.append(y, int(shards[i][1]))
     poly = lagrange(x, y)
     return np.polynomial.polynomial.Polynomial(poly).coef[-1] % prime
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     #test driver code below \/ \/ \/
     numCreators = input("please enter the number of people: ")
     numToOpen = input("please enter the number of people needed to open the key: ")
-    key = input("please enter the key: less than 2147483647: ")
+    key = input("please enter a key less than 2147483647: ")
     numpeople = input("please enter the number of people attempting to generate the key: ")
     shards = generate_shard(numCreators, numToOpen, key)
     print("the generated shards are: ")

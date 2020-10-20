@@ -6,7 +6,7 @@ val_num_char = 127
 
 def format_text(tex):
 
-    print(tex)
+    #print(tex)
     return tex
 
 

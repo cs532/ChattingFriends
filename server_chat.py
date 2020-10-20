@@ -12,12 +12,12 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 0               # debug mode on if 1, off if 0
+debug = 1               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
 stop_pep8 = 8           # and if they are on/off line
-rooms = [["home", 0, 1, 0]]   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
+rooms = []   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
 HELP_MSG = "Hello! Here are the current list of available functions:\n#NAME: change name \n#END: end session\n#WHOM: " \
            "view list of people online\n#ROOMS: get a list of rooms\n "
 
@@ -84,7 +84,13 @@ def find_name_index(name):
     for k in range(len(people)):
         if people[k][3] == name:
             return k
+    return -1
 
+
+def find_roomname_index(name):
+    for j in range(len(rooms)):
+        if rooms[j][0] == name:
+            return j
     return -1
 
 def establish_secret_comm_chain(sock):
@@ -171,15 +177,35 @@ def comm_thread(sock, ind):
                         creators = splitmsg[2].split(",")
                         roomkey = int(np.random.rand() * prime - 1)
                         rooms.append([splitmsg[1], roomkey, splitmsg[3]])
-                        print(len(creators))
-                        print(int(splitmsg[3][0]))
-                        print(roomkey)
+                        debug_print(roomkey)
                         keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
                         for x in range(len(creators)):
-                            sendq[find_name_index(creators[x])].append(keyshards[x])
+                            sendq[find_name_index(creators[x])].append("#SEND Your key shard is: " +
+                                                                       str(keyshards[x][1]) + " store this number in a "
+                                                                                              "safe place")
+                        debug_print("the following keyshards have been generated: " + str(keyshards))
+                        update_room_info()
                     else:
-                        sendq[ind].append("Room not created: insufficient arguments provided")
+                        sendq[ind].append("#SEND Room not created: insufficient arguments provided")
 
+                #gets the log of the current room
+                elif ft[1:8] == "GET_LOG":
+                    if len(splitmsg) == 2:
+                        shards = splitmsg[1].split(",")
+                        generatedkey = compile_shards(shards)
+                        if generatedkey == rooms[find_roomname_index(people[ind][3])][1]:
+                            sendq[ind].append("#SEND The following is the log for the room: " +
+                                              read_file_to_string(people[ind][3]))
+                        else:
+                            sendq[ind].append("#SEND Log not fetched: incorrect key segments provided")
+                    else:
+                        sendq[ind].append("#SEND Log not fetched: insufficient arguments provided")
+
+                elif ft[1:5] == "ROOM":
+                    if len(splitmsg) == 2:
+                        people[ind][2] = splitmsg[1]
+                    else:
+                        sendq[ind].append("#SEND Room not changed: insufficient arguments provided")
 
                 elif ft[1:4] == "END":
                     people[ind][4] = 0
@@ -252,10 +278,14 @@ def make_file_to_write(name):
         f.write("")
 
 
-# Write message to file
+# Write message to log file
 def write_to_file(name, message):
-    with open(name + "_log.txt", 'a') as f:
-        f.write(message)
+    try:
+        with open(name + "_log.txt", 'a') as f:
+            f.write(message)
+    except FileNotFoundError:
+        with open(name + "_log.txt", 'x') as f:
+            f.write(message)
 
 
 # takes file contents and turns them into a string
@@ -266,22 +296,25 @@ def read_file_to_string(name):
     return text
 
 
-#checks to make sure there are log txt files for rooms encase of a server crash
+# populate rooms based on rooms_info.txt and create files if they do not already exist
 def startup_room_info():
     global rooms
     try:
         with open("rooms_info.txt", 'r') as f:
-            rooms = list(f.read())
-            print(rooms)
+            roomslist = f.read()[:-2].split(",,")
+            for x in range(len(roomslist)):
+                room = roomslist[x].strip("[]").split(", ")
+                rooms.append([room[0].strip("'"), room[1], room[2]])
         if not rooms:
-            rooms = [['home', 0]]
+            rooms = ['home', 0, 1]
     except FileNotFoundError:
         with open("rooms_info.txt", 'x') as f:
-            f.write(str(rooms))
+            for y in range(len(rooms)):
+                f.write(str(rooms[y]) + ",,")
     try:
         with open("home_log.txt", 'r') as f:
             temp = list(f.read())
-            temp = "0"
+            print(temp)
     except FileNotFoundError:
         with open("home_log.txt", 'x') as f:
             f.write("")
@@ -290,20 +323,22 @@ def startup_room_info():
     print(rooms)
 
 
+# update rooms_info.txt with the current rooms
 def update_room_info():
     global rooms
-    for y in rooms:
-        try:
-            with open(str(y[0]) + "_log.txt", 'a') as f:
-                f.write("")
-        except FileNotFoundError:
-            with open(str(y[0]) + "_log.txt", 'x') as f:
-                f.write("")
+    try:
+        with open("rooms_info.txt", 'w') as f:
+            for x in range(len(rooms)):
+                f.write(str(rooms[x]) + ",,")
+    except FileNotFoundError:
+        with open("rooms_info.txt", 'x') as f:
+            for x in range(len(rooms)):
+                f.write(str(rooms[x]) + ",,")
 
 
 if __name__ == "__main__":
 
-    ports = [ 2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024 ]
+    ports = [2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024]
     setup_sendq(ports)  # set up list for send_req for each thread
     startup_room_info()
     i, num_of_ports = 0, 12
