@@ -17,7 +17,7 @@ IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
 stop_pep8 = 8           # and if they are on/off line
-rooms = [['home', 0, 1, 0]]   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
+rooms = [["home", 0, 1, 0]]   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
 HELP_MSG = "Hello! Here are the current list of available functions:\n#NAME: change name \n#END: end session\n#WHOM: " \
            "view list of people online\n#ROOMS: get a list of rooms\n "
 
@@ -165,11 +165,26 @@ def comm_thread(sock, ind):
                     print(people)
                     print(rooms)
 
+                #creates a room and sends the shards to the creators
+                elif ft[1:5] == "MAKE":
+                    if len(splitmsg) == 4:
+                        creators = splitmsg[2].split(",")
+                        roomkey = int(np.random.rand() * prime - 1)
+                        rooms.append([splitmsg[1], roomkey, splitmsg[3]])
+                        print(len(creators))
+                        print(int(splitmsg[3][0]))
+                        print(roomkey)
+                        keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
+                        for x in range(len(creators)):
+                            sendq[find_name_index(creators[x])].append(keyshards[x])
+                    else:
+                        sendq[ind].append("Room not created: insufficient arguments provided")
+
+
                 elif ft[1:4] == "END":
                     people[ind][4] = 0
                     people[ind][3] = "default" + str(ind)
                     graceful_end(ind, conn, sock)
-
 
             else:
                 send_to_room(people[ind][2], people[ind][3], plt, ind)
@@ -251,6 +266,7 @@ def read_file_to_string(name):
     return text
 
 
+#checks to make sure there are log txt files for rooms encase of a server crash
 def startup_room_info():
     global rooms
     try:
@@ -259,19 +275,31 @@ def startup_room_info():
             print(rooms)
         if not rooms:
             rooms = [['home', 0]]
-    except:
+    except FileNotFoundError:
         with open("rooms_info.txt", 'x') as f:
             f.write(str(rooms))
     try:
         with open("home_log.txt", 'r') as f:
             temp = list(f.read())
             temp = "0"
-    except:
+    except FileNotFoundError:
         with open("home_log.txt", 'x') as f:
             f.write("")
 
     debug_print("rooms table is :")
     print(rooms)
+
+
+def update_room_info():
+    global rooms
+    for y in rooms:
+        try:
+            with open(str(y[0]) + "_log.txt", 'a') as f:
+                f.write("")
+        except FileNotFoundError:
+            with open(str(y[0]) + "_log.txt", 'x') as f:
+                f.write("")
+
 
 if __name__ == "__main__":
 

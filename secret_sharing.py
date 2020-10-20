@@ -33,7 +33,7 @@ def generate_shard(numCreators, numToOpen, key):
     c = []
     c.append(int(key))
     for x in range(int(numToOpen)-1):
-        c.append(int(np.random.rand() * prime -1))
+        c.append(int(np.random.rand() * prime - 1))
     shards = []
     for x in range(int(numCreators)):
         shards.append([x+1, create_polynomial(x+1, c)])
