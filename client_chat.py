@@ -93,6 +93,11 @@ if __name__ == "__main__":
             if len(data) == 0:
                 data = "#HELP"
 
+            # GET_LOG needs a space at the end
+            if data[0:8] == '#GET_LOG':
+                if data[-1] != ' ':
+                    data = data + ' '
+
             debug_print('coding {!r}'.format(data))
             enc_send(data, sock, key)
             if data == "#END":

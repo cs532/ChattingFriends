@@ -12,14 +12,15 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 1               # debug mode on if 1, off if 0
+debug = 0               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
 stop_pep8 = 8           # and if they are on/off line
 rooms = []   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
 HELP_MSG = "Hello! Here are the current list of available functions:\n#NAME: change name \n#END: end session\n#WHOM: " \
-           "view list of people online\n#ROOMS: get a list of rooms\n "
+           "view list of people online\n#ROOMS: get a list of rooms\n#MAKE roomname creatorNames numToOpen: create ro" \
+           "om\n#ROOM roomname: change room\n#GET_LOG shard1,shard2,...: gets the chat log of the current room"
 
 
 # debug utility functions
@@ -171,35 +172,32 @@ def comm_thread(sock, ind):
                     print(people)
                     print(rooms)
 
-                #creates a room and sends the shards to the creators
+                # creates a room and sends the shards to the creators
                 elif ft[1:5] == "MAKE":
-                    if len(splitmsg) == 4:
-                        creators = splitmsg[2].split(",")
-                        roomkey = int(np.random.rand() * prime - 1)
-                        rooms.append([splitmsg[1], roomkey, splitmsg[3]])
-                        debug_print(roomkey)
-                        keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
-                        for x in range(len(creators)):
-                            sendq[find_name_index(creators[x])].append("#SEND Your key shard is: " +
-                                                                       str(keyshards[x][1]) + " store this number in a "
-                                                                                              "safe place")
-                        debug_print("the following keyshards have been generated: " + str(keyshards))
-                        update_room_info()
-                    else:
-                        sendq[ind].append("#SEND Room not created: insufficient arguments provided")
+                    creators = splitmsg[2].split(",")
+                    roomkey = int(np.random.rand() * prime - 1)
+                    rooms.append([splitmsg[1], roomkey, splitmsg[3]])
+                    debug_print(roomkey)
+                    keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
+                    for x in range(len(creators)):
+                        sendq[find_name_index(creators[x])].append("#SEND Your key shard is: " +
+                                                                    str(keyshards[x][1]) + " store this number in a "
+                                                                                            "safe place")
+                    debug_print("the following keyshards have been generated: " + str(keyshards))
+                    update_room_info()
 
-                #gets the log of the current room
+                # gets the log of the current room
                 elif ft[1:8] == "GET_LOG":
-                    if len(splitmsg) == 2:
-                        shards = splitmsg[1].split(",")
-                        generatedkey = compile_shards(shards)
-                        if generatedkey == rooms[find_roomname_index(people[ind][3])][1]:
-                            sendq[ind].append("#SEND The following is the log for the room: " +
-                                              read_file_to_string(people[ind][3]))
-                        else:
-                            sendq[ind].append("#SEND Log not fetched: incorrect key segments provided")
+                    shardnums = splitmsg[1].split(",")
+                    shards = []
+                    for q in range(len(shardnums)):
+                        shards.append([q+1, int(shardnums[q])])
+                    generatedkey = compile_shards(shards)
+                    if int(generatedkey) == int(rooms[find_roomname_index(people[ind][3])][1]):
+                        sendq[ind].append("#SEND The following is the log for the room- " +
+                                            read_file_to_string(rooms[find_roomname_index(people[ind][3])][0]))
                     else:
-                        sendq[ind].append("#SEND Log not fetched: insufficient arguments provided")
+                        sendq[ind].append("#SEND Log not fetched: incorrect key segments provided")
 
                 elif ft[1:5] == "ROOM":
                     if len(splitmsg) == 2:
@@ -283,16 +281,20 @@ def write_to_file(name, message):
     try:
         with open(name + "_log.txt", 'a') as f:
             f.write(message)
+            f.write("| |")
     except FileNotFoundError:
         with open(name + "_log.txt", 'x') as f:
             f.write(message)
+            f.write("")
 
 
 # takes file contents and turns them into a string
 def read_file_to_string(name):
-
-    with open(name + "_log.txt", 'r') as f:
-        text = f.read()
+    try:
+        with open(name + "_log.txt", 'r') as f:
+            text = f.read()
+    except FileNotFoundError:
+        return name + "_log.txt does not exist"
     return text
 
 
@@ -305,9 +307,8 @@ def startup_room_info():
             for x in range(len(roomslist)):
                 room = roomslist[x].strip("[]").split(", ")
                 rooms.append([room[0].strip("'"), room[1], room[2]])
-        if not rooms:
-            rooms = ['home', 0, 1]
     except FileNotFoundError:
+        rooms = [["home", 0, 1]]
         with open("rooms_info.txt", 'x') as f:
             for y in range(len(rooms)):
                 f.write(str(rooms[y]) + ",,")

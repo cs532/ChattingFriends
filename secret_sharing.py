@@ -45,8 +45,8 @@ def compile_shards(shards):
     x = np.array([])
     y = np.array([])
     for i in range(len(shards)):
-        x = np.append(x, int(shards[i][0]))
-        y = np.append(y, int(shards[i][1]))
+        x = np.append(x, shards[i][0])
+        y = np.append(y, shards[i][1])
     poly = lagrange(x, y)
     return np.polynomial.polynomial.Polynomial(poly).coef[-1] % prime
 
