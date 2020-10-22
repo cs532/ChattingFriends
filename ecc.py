@@ -14,10 +14,10 @@ def decrypt_AES_GCM(ciphertext, nonce, authTag, secretKey):
     plaintext = aesCipher.decrypt_and_verify(ciphertext, authTag)
     return plaintext
 
-def ecc_point_to_256_bit_key(point):
-    sha = hashlib.sha256(int.to_bytes(point.x, 32, 'big'))
+def ecc_point_to_128_bit_key(point):
+    sha = hashlib.shake_128(int.to_bytes(point.x, 32, 'big'))
     sha.update(int.to_bytes(point.y, 32, 'big'))
-    return sha.digest()
+    return sha.digest(16)
 
 curve = registry.get_curve('secp256r1')
 
@@ -30,7 +30,7 @@ def encrypt_ECC(msg, pubKey):
     # of this point is used as the secret key.
     sharedECCKey = ciphertextPrivKey * pubKey
     # Format to 256-bit key
-    secretKey = ecc_point_to_256_bit_key(sharedECCKey)
+    secretKey = ecc_point_to_128_bit_key(sharedECCKey)
     # Encrypts the message to cipher text using the secret key
     ciphertext, nonce, authTag = encrypt_AES_GCM(msg, secretKey)
     # This following value is Alice's public key, alpha*G, which she will give back to Bob so that he can calc
@@ -46,7 +46,7 @@ def decrypt_ECC(encryptedMsg, privKey):
     # beta, which they don't have.
     sharedECCKey = privKey * ciphertextPubKey
     # Format to 256-bit key
-    secretKey = ecc_point_to_256_bit_key(sharedECCKey)
+    secretKey = ecc_point_to_128_bit_key(sharedECCKey)
     # Use the secret key to decrypt the ciphertext.
     plaintext = decrypt_AES_GCM(ciphertext, nonce, authTag, secretKey)
     return plaintext
