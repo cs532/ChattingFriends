@@ -248,27 +248,21 @@ def add_key_step(msg, round_key):
 
 def subbyte_step(msg):
 
-    msg = general_table_lookup(msg, sbox)
+    for n in range(msg.shape[0]):
+        for m in range(msg.shape[1]):
+            for k in range(msg.shape[2]):
+                msg[n, m, k] = sbox[msg[n, m, k]]
     return msg
-
-#    for n in range(msg.shape[0]):
-#        for m in range(msg.shape[1]):
-#            for k in range(msg.shape[2]):
-#                msg[n, m, k] = sbox[msg[n, m, k]]
-#    return msg
 
 
 def inv_subbyte_step(msg):
 
-    msg = general_table_lookup(msg,inv_sbox)
+    for n in range(msg.shape[0]):
+        for m in range(msg.shape[1]):
+            for k in range(msg.shape[2]):
+                msg[n, m, k] = inv_sbox[msg[n, m, k]]
+
     return msg
-
-#    for n in range(msg.shape[0]):
-#        for m in range(msg.shape[1]):
-#            for k in range(msg.shape[2]):
-#                msg[n, m, k] = inv_sbox[msg[n, m, k]]
-
-#    return msg
 
 
 
@@ -295,13 +289,6 @@ def shift_rows_step(msg):
 
     return msg
 
-
-def general_table_lookup(vec, table):
-
-    for k in range(256):
-        np.where(vec == k, table[k], vec)
-
-    return vec
 
 def inv_mix_column(vec):
 
