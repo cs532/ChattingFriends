@@ -3,7 +3,6 @@
 import sys
 import socket
 import threading
-import time
 from secret_sharing import *
 from mass_encrypt import *
 
@@ -12,12 +11,12 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 0               # debug mode on if 1, off if 0
+debug = 1               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
-stop_pep8 = 8           # and if they are on/off line
-rooms = []   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format?
+stop_pep8 = 8           # and if they are on/off line. stop_pep8 is useless besides to stop pycharm yelling at me.
+rooms = []   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format
 HELP_MSG = "Hello! Here are the current list of available functions:\n#NAME: change name \n#END: end session\n#WHOM: " \
            "view list of people online\n#ROOMS: get a list of rooms\n#MAKE roomname creatorNames numToOpen: create ro" \
            "om\n#ROOM roomname: change room\n#GET_LOG shard1,shard2,...: gets the chat log of the current room"
@@ -30,12 +29,11 @@ def debug_print(words):
         print(str(words))
 
 
-def graceful_end(index, connection, socke):
+def graceful_end(index, connection):
     sendq[index].append("#CLOSE")
     time.sleep(5)
     connection.close()
-#    socke.close()
-#    time.sleep(300)
+
     IO_queue.append("#RESTART " + str(index))
     sys.exit(0)
 
@@ -88,28 +86,30 @@ def find_name_index(name):
     return -1
 
 
-def find_roomname_index(name):
+def find_room_name_index(name):
     for j in range(len(rooms)):
         if rooms[j][0] == name:
             return j
     return -1
 
-def establish_secret_comm_chain(sock):
+
+def establish_secret_comm_chain(sockit):
     # the only unencrypted part of chat
     secret = gen_private_key()
-    B = gen_public_key(secret)
-    debug_print(B)
+    pubkey = gen_public_key(secret)
+    debug_print(pubkey.x)
     # Wait for a connection
     debug_print('waiting for a connection')
-    connection, cl_add = sock.accept()
+    connection, cl_add = sockit.accept()
     data = connection.recv(4096).decode('utf-8')
     debug_print("recv data:")
     debug_print(data)
-    key = establish_secret(int(data), secret)
-    connection.sendall(str(B).encode('utf-8'))
-    debug_print("key is " + str(key))
+    key_no_expand = establish_secret(data, secret)
+    connection.sendall(str(pubkey).encode('utf-8'))
+    all_keys = expand_key(proper_parser(key_no_expand))
+    debug_print("key is " + str(key_no_expand))
     debug_print("")
-    return connection, key, cl_add
+    return connection, all_keys, cl_add
 
 
 def server_connection_setup(port):
@@ -132,6 +132,7 @@ def comm_thread(sock, ind):
     sock.listen(1)
 
     conn, key1, client_address = establish_secret_comm_chain(sock)
+
     people[ind][4] = 1
     send_thread1 = threading.Thread(target=send_thread, args=(conn, key1, ind))
     send_thread1.start()
@@ -142,10 +143,11 @@ def comm_thread(sock, ind):
         # Receive the data
         while True:
             data = conn.recv(4096).decode('utf-8')
-            if len(data) == 0:
+
+            if len(data) == 0: # reset connection
                 people[ind][4] = 0
                 people[ind][3] = "default"+str(ind)
-                graceful_end(ind, conn, sock)
+                graceful_end(ind, conn)
 
             plt = dec_recv(data, key1)
 
@@ -193,9 +195,9 @@ def comm_thread(sock, ind):
                     for q in range(len(shardnums)):
                         shards.append([q+1, int(shardnums[q])])
                     generatedkey = compile_shards(shards)
-                    if int(generatedkey) == int(rooms[find_roomname_index(people[ind][3])][1]):
+                    if int(generatedkey) == int(rooms[find_room_name_index(people[ind][3])][1]):
                         sendq[ind].append("#SEND The following is the log for the room- " +
-                                            read_file_to_string(rooms[find_roomname_index(people[ind][3])][0]))
+                                            read_file_to_string(rooms[find_room_name_index(people[ind][3])][0]))
                     else:
                         sendq[ind].append("#SEND Log not fetched: incorrect key segments provided")
 
@@ -205,12 +207,17 @@ def comm_thread(sock, ind):
                     else:
                         sendq[ind].append("#SEND Room not changed: insufficient arguments provided")
 
-                elif ft[1:4] == "END":
+                elif ft[1:4] == "END": # End and reset connection / name
                     people[ind][4] = 0
                     people[ind][3] = "default" + str(ind)
-                    graceful_end(ind, conn, sock)
+                    graceful_end(ind, conn)
+
+                else:
+                    debug_print("# followed by nothing understandable, becoming a send so ppl can laugh in chat.")
+                    send_to_room(people[ind][2], people[ind][3], plt, ind)
 
             else:
+                debug_print("Interpreted as a general message. Sending to room.")
                 send_to_room(people[ind][2], people[ind][3], plt, ind)
 
 
@@ -219,7 +226,7 @@ def comm_thread(sock, ind):
         conn.close()
 
 
-def send_thread(con, key, index):
+def send_thread(con, big_key, index):
     # this thread reads from a queue and does the appropriate action.
     debug_print("send thread initiated")
     global sendq, people, rooms, HELP_MSG
@@ -230,11 +237,11 @@ def send_thread(con, key, index):
             mesg = "sending response to request " + response[0]
             debug_print(mesg)
             debug_print(response)
-            debug_print(response[0][0:-1])
+            debug_print(response[0])
 
-            if response[0][0:-1] == "#HELP":
+            if response[0] == "#HELP":
                 debug_print("Help initialized.")
-                enc_send(HELP_MSG, con, key)
+                enc_send(HELP_MSG, con, big_key)
 
             elif response[0][0:-1] == "#WHOM":
                 nu_msg = ""
@@ -243,24 +250,24 @@ def send_thread(con, key, index):
                         nu_msg = nu_msg + people[p][3] + "\n"
                 if nu_msg == "":
                     nu_msg = "Only you are online.\n"
-                enc_send(nu_msg, con, key)
+                enc_send(nu_msg, con, big_key)
 
             elif response[0] == "#ROOMS":
                 nu_msg = ""
                 for r in range(len(rooms)):
                     nu_msg = nu_msg + rooms[r][0] + "\n"
 
-                enc_send(nu_msg, con, key)
+                enc_send(nu_msg, con, big_key)
 
             elif response[0] == "#SEND":
                 debug_print("Sending message to user")
                 nu_msg = " ".join(response[1:])
-                enc_send(nu_msg, con, key)
+                enc_send(nu_msg, con, big_key)
 
             elif response[0] == "#CLOSE":
                 debug_print("closing..." + str(index))
                 nu_msg = "#CLOSE"
-                enc_send(nu_msg, con, key)
+                enc_send(nu_msg, con, big_key)
                 while 0 < len(sendq[index]):
                     sendq[index].pop()
                 sys.exit(0)
@@ -307,15 +314,18 @@ def startup_room_info():
             for x in range(len(roomslist)):
                 room = roomslist[x].strip("[]").split(", ")
                 rooms.append([room[0].strip("'"), room[1], room[2]])
+
     except FileNotFoundError:
         rooms = [["home", 0, 1]]
         with open("rooms_info.txt", 'x') as f:
             for y in range(len(rooms)):
                 f.write(str(rooms[y]) + ",,")
+
     try:
         with open("home_log.txt", 'r') as f:
             temp = list(f.read())
             print(temp)
+
     except FileNotFoundError:
         with open("home_log.txt", 'x') as f:
             f.write("")
@@ -339,10 +349,10 @@ def update_room_info():
 
 if __name__ == "__main__":
 
-    ports = [2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024]
+    ports = [2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024, 2026]
     setup_sendq(ports)  # set up list for send_req for each thread
     startup_room_info()
-    i, num_of_ports = 0, 12
+    i, num_of_ports = 0, 14
     sock = []
     while i < num_of_ports:  # from 0 to number of ports in the list, start a thread for each
         sock.append(server_connection_setup(ports[i]))
@@ -373,7 +383,6 @@ if __name__ == "__main__":
                 fname = IO_msg[1]
                 send_to = IO_msg[2]
                 plain_text = read_file_to_string(fname)
-
 
             else:
                 print("IO_thread does not understand command")
