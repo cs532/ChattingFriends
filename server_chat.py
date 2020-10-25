@@ -154,6 +154,9 @@ def comm_thread(sock, ind):
             debug_print('recv {!r}'.format(data))
             debug_print('decoded: {!r}'.format(plt))
             splitmsg = plt.split()
+            if len(splitmsg) == 0:
+                splitmsg.append("#HELP")
+
             ft = str(splitmsg[0])  # ft = first token
             debug_print(ft)
 
