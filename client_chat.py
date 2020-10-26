@@ -5,8 +5,6 @@ import threading
 from secret_sharing import *
 from mass_encrypt import *
 
-# TODO: figure out best way to do IO for recv'd files from the server and storage for keyshards
-
 # define globals
 key = 0        # shared secret for client/server communication
 debug = 0      # debug mode on if 1, off if 0
@@ -18,8 +16,8 @@ def debug_print(words):
         print(str(words))
 
 
-def enc_send(plaintext, sock1, secret):
-    cipher_text = mass_encrypt(plaintext, secret)
+def enc_send(plain_text, sock1, secret):
+    cipher_text = mass_encrypt(plain_text, secret)
     sock1.sendall(cipher_text.encode('utf-8'))
 
 
@@ -29,7 +27,7 @@ def dec_recv(cipher_text, secret):
 
 
 def establish_secret_comm_chain(sock1):
-    global key
+
     secret = gen_private_key()
     A = gen_public_key(secret)
     debug_print(secret)
@@ -41,9 +39,10 @@ def establish_secret_comm_chain(sock1):
     debug_print("data:")
     data1 = data1.decode('utf-8')
     debug_print(data1)
-    key = establish_secret(int(data1), secret)
-    debug_print("key is " + str(key))
-    return key
+    key_no_expand = establish_secret(data1, secret)
+    all_keys = expand_key(proper_parser(key_no_expand))
+    debug_print("key is " + str(key_no_expand))
+    return all_keys
 
 
 def recv_thread(sock1, secret):
@@ -75,6 +74,7 @@ if __name__ == "__main__":
     # Connect the socket to the port where the server is listening
     server_address = ('localhost', int(chosen_port))
     print('connecting to {} port {}'.format(*server_address))
+    print()
     sock.connect(server_address)
 
     try:
