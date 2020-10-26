@@ -3,15 +3,18 @@ from tinyec import registry, ec
 import secrets
 from scipy.interpolate import lagrange
 
-
+# We will be using NIST curve secp256r1
 curve = registry.get_curve('secp256r1')
 
 
 def gen_private_key():
+    # Generates a random private key for ECC
     return secrets.randbelow(curve.field.n)
 
 
 def gen_public_key(private):
+    # Generates a random public key, given a private key for ECC
+    # curve.g is the generator point and private is the number of times the dot operator will be performed on it
     return private * curve.g
 
 
