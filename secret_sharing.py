@@ -23,8 +23,12 @@ def establish_secret(friend_pub_key, private_key):
     x = point_setup[0][1:-1]
     y = point_setup[1][0:-1]
     pub = ec.Point(curve, int(x), int(y))
+    # The public key is your friend's private key (alpha) times G (The generator point). To get the secret you multiply the public
+    # key by your private key (beta). Both you and your friend get the same point since the end point is alpha * beta * G. 
+    # This is secure since a listener would only ever see (alpha * G) and (beta * G), but they would not know alpha or beta by themself,
+    # which is extremely difficult to compute (Discrete Logarithm Function for ECC), this they cannot find alpha * beta * G.
     shared_secret = (private_key * pub)
-
+    # We use the x value of the point as the shared secret. 
     return shared_secret.x
 
 
