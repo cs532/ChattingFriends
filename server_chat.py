@@ -181,7 +181,7 @@ def comm_thread(sock, ind):
                 elif ft[1:5] == "MAKE":
                     creators = splitmsg[2].split(",")
                     roomkey = int(np.random.rand() * prime - 1)
-                    rooms.append([splitmsg[1], roomkey, splitmsg[3]])
+                    rooms.append([splitmsg[1], roomkey, int(splitmsg[3])])
                     debug_print(roomkey)
                     keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
                     for x in range(len(creators)):
@@ -257,6 +257,7 @@ def send_thread(con, big_key, index):
 
             elif response[0] == "#ROOMS":
                 nu_msg = ""
+                debug_print(str(rooms))
                 for r in range(len(rooms)):
                     nu_msg = nu_msg + rooms[r][0] + "\n"
 
@@ -315,8 +316,9 @@ def startup_room_info():
         with open("rooms_info.txt", 'r') as f:
             roomslist = f.read()[:-2].split(",,")
             for x in range(len(roomslist)):
+                debug_print("room = ")
                 room = roomslist[x].strip("[]").split(", ")
-                rooms.append([room[0].strip("'"), room[1], room[2]])
+                rooms.append([room[0].strip("'"), int(room[1]), int(room[2])])
 
     except FileNotFoundError:
         rooms = [["home", 0, 1]]
@@ -343,6 +345,7 @@ def update_room_info():
     try:
         with open("rooms_info.txt", 'w') as f:
             for x in range(len(rooms)):
+                debug_print(str(rooms[x]))
                 f.write(str(rooms[x]) + ",,")
     except FileNotFoundError:
         with open("rooms_info.txt", 'x') as f:
