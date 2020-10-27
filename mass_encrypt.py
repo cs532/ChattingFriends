@@ -395,7 +395,7 @@ def mass_encrypt(plain_text, keys ):
     cipher_text = plain_text
 #    print("block to string")
     cipher_text = block_to_string(cipher_text)
-
+    cipher_text = cipher_text + " "
     return cipher_text
 
 

@@ -11,16 +11,16 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 1               # debug mode on if 1, off if 0
+debug = 0               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
 stop_pep8 = 8           # and if they are on/off line. stop_pep8 is useless besides to stop pycharm yelling at me.
-rooms = []   # list of rooms, [room name, Shamir secret key, number of shards to assemble, k-1 key shards for verification] format
+rooms = []              # list of rooms, [room name, Shamir secret key, number of shards to assemble] format
 HELP_MSG = "Hello! Here are the current list of available functions:\n#NAME: change name \n#END: end session\n#WHOM: " \
            "view list of people online\n#ROOMS: get a list of rooms\n#MAKE roomname creatorNames numToOpen: create ro" \
            "om\n#ROOM roomname: change room\n#GET_LOG shard1,shard2,...: gets the chat log of the current room"
-
+log_num = (2**256)-1
 
 # debug utility functions
 def debug_print(words):
@@ -149,6 +149,7 @@ def comm_thread(sock, ind):
                 people[ind][3] = "default"+str(ind)
                 graceful_end(ind, conn)
 
+            debug_print('recv {!r}'.format(data))
             plt = dec_recv(data, key1)
 
             debug_print('recv {!r}'.format(data))
@@ -194,13 +195,15 @@ def comm_thread(sock, ind):
                 # gets the log of the current room
                 elif ft[1:8] == "GET_LOG":
                     shardnums = splitmsg[1].split(",")
-                    shards = []
+                    in_shards = []
                     for q in range(len(shardnums)):
-                        shards.append([q+1, int(shardnums[q])])
-                    generatedkey = compile_shards(shards)
-                    if int(generatedkey) == int(rooms[find_room_name_index(people[ind][3])][1]):
+                        in_shards.append([q+1, int(shardnums[q])])
+                    generatedkey = compile_shards(in_shards)
+                    debug_print(generatedkey)
+                    debug_print(people[ind][2])
+                    if int(generatedkey) == int(rooms[find_room_name_index(people[ind][2])][1]):
                         sendq[ind].append("#SEND The following is the log for the room- " +
-                                            read_file_to_string(rooms[find_room_name_index(people[ind][3])][0]))
+                                          read_file_to_string(rooms[find_room_name_index(people[ind][2])][0]))
                     else:
                         sendq[ind].append("#SEND Log not fetched: incorrect key segments provided")
 
@@ -291,19 +294,21 @@ def make_file_to_write(name):
 def write_to_file(name, message):
     try:
         with open(name + "_log.txt", 'a') as f:
-            f.write(message)
-            f.write("| |")
+            f.write(mass_encrypt(message + "| |", expand_key(proper_parser(rooms[find_room_name_index(name)][1] ^
+                                                                           log_num))))
+            #f.write(' ')
     except FileNotFoundError:
         with open(name + "_log.txt", 'x') as f:
-            f.write(message)
-            f.write("")
+            f.write(mass_encrypt(message + "| |", expand_key(proper_parser(rooms[find_room_name_index(name)][1] ^
+                                                                           log_num))))
+            #f.write(' ')
 
 
 # takes file contents and turns them into a string
 def read_file_to_string(name):
     try:
         with open(name + "_log.txt", 'r') as f:
-            text = f.read()
+            text = mass_decrypt(f.read(), expand_key(proper_parser(rooms[find_room_name_index(name)][1] ^ log_num)))
     except FileNotFoundError:
         return name + "_log.txt does not exist"
     return text
@@ -393,4 +398,4 @@ if __name__ == "__main__":
             else:
                 print("IO_thread does not understand command")
 
-            IO_queue.pop()
+            IO_queue.pop(0)

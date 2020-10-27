@@ -105,7 +105,7 @@ if __name__ == "__main__":
                     a = 1
 
                 sys.exit()
-
+            time.sleep(2)
 
     finally:
         print('closing socket')

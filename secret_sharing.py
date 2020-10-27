@@ -58,7 +58,7 @@ def proper_parser(num):
 
 # this is a mersenne prime number and this controls how secure the key is
 # must be less than 2**32 due to the use of np.rand()
-prime = 2**31 - 1
+prime = (2**31) - 1
 
 
 # create_polynomial returns the value of a polynomial given an x and the randomly generated coefficients
