@@ -186,8 +186,8 @@ def comm_thread(sock, ind):
                     keyshards = generate_shard(len(creators), int(splitmsg[3][0]), roomkey)
                     for x in range(len(creators)):
                         sendq[find_name_index(creators[x])].append("#SEND Your key shard is: " +
-                                                                    str(keyshards[x][1]) + " store this number in a "
-                                                                                            "safe place")
+                                                                   str(keyshards[x]) + " store this number in a "
+                                                                                       "safe place")
                     debug_print("the following keyshards have been generated: " + str(keyshards))
                     update_room_info()
 
