@@ -11,7 +11,7 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 1               # debug mode on if 1, off if 0
+debug = 0               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
