@@ -11,7 +11,7 @@ from mass_encrypt import *
 # don't spend too much time on input validation
 
 # Define globals
-debug = 0               # debug mode on if 1, off if 0
+debug = 1               # debug mode on if 1, off if 0
 IO_queue = []           # IO_queue for passing messages to IO thread
 sendq = []              # sendq for sending message between recv threads, [index, port number] format
 people = []             # people is used for storing information about people, i.e. names, connection number, room,
@@ -249,7 +249,7 @@ def send_thread(con, big_key, index):
                 debug_print("Help initialized.")
                 enc_send(HELP_MSG, con, big_key)
 
-            elif response[0][0:-1] == "#WHOM":
+            elif response[0] == "#WHOM":
                 nu_msg = ""
                 for p in range(len(people)):
                     if people[p][4] == 1:
