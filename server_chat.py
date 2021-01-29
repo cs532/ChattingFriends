@@ -276,12 +276,12 @@ def send_thread(con, big_key, index):
                 nu_msg = "#CLOSE"
                 enc_send(nu_msg, con, big_key)
                 while 0 < len(sendq[index]):
-                    sendq[index].pop()
+                    sendq[index].pop(0)
                 sys.exit(0)
 
             else:
                 debug_print("Connection " + str(index) + " does not understand: " + str(sendq[index][0]) + ", deleting")
-            sendq[index].pop()
+            sendq[index].pop(0)
 
 
 # Makes a file with the associated room
